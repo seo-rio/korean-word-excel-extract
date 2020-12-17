@@ -87,7 +87,6 @@ def only_work_proc():
 def work_proc_with_thread():
 
     procs = []
-
     # 파일 목록 배열에서 각 코어당 배정될 스레드 수만큼 파일을 나눠서 분배
     arr_st_cnt = 0
 
