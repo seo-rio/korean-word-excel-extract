@@ -101,7 +101,6 @@ def work_proc_with_thread():
         proc.start()
         procs.append(proc)
 
-
         arr_st_cnt += thread_count
 
     for proc in procs:
