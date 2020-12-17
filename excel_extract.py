@@ -17,6 +17,7 @@ path = './xlsx_file'
 file_list = os.listdir(path)
 file_count = len(file_list)
 
+
 def convert_text(text):
     return_text = text.replace('-', '')
     count = return_text.find('(')
@@ -59,7 +60,7 @@ def work_thread(file_path_arr):
 
 # Pool을 이용한 작업
 def work_pool():
-    pool = Pool(processes=4)
+    pool = Pool(processes=use_cpu)
 
     file_arr = []
     for i in range(0, file_count):
@@ -136,7 +137,7 @@ def extract(file_path):
 
     df = pandas.DataFrame(df_obj)
 
-    # print(df)
+    print(df)
     print('프로세스 PID: {}, 파일 [{}] 작업 종료'.format(os.getpid(), file_path))
     # df.to_csv('1.csv', encoding='utf-8-sig')
 
@@ -149,8 +150,9 @@ if __name__ == '__main__':
     for i in range(0, loop_count):
         start = time.time()
         print('총 [{}]개 작업 중, [{}] 번째 작업 시작'.format(loop_count, i + 1))
-        # only_work_proc()
-        work_proc_with_thread()
+        # only_work_proc()  # 48.72 sec cpu 50% 정도
+        work_proc_with_thread()  # 43.66 거의 cpu 90 % 이상
+        # work_pool() 44.99 거의 90% 이상
         print('소요 시간 {}초'.format(round((time.time() - start), 2)))
         total_time += round((time.time() - start), 2)
 
