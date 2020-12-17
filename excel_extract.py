@@ -107,7 +107,6 @@ def work_proc_with_thread():
 
 
 def extract(file_path):
-
     print('프로세스 PID: {}, 파일 [{}] 작업 시작'.format(os.getpid(), file_path))
 
     wb = openpyxl.load_workbook(file_path)
