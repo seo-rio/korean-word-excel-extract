@@ -1,31 +1,22 @@
-import openpyxl
 import os
-import pandas
 import math
+import pandas
+import openpyxl
+# from excel.extract.excel_to_csv import extract
 from multiprocessing import Process
-from multiprocessing import Pool
+from multiprocessing import Queue
 from threading import Thread
-import time
-import re
-import sys
+from multiprocessing import Pool
 
 
 # 사용가능한 프로세스 개수
-use_cpu = int(os.cpu_count())
-
+use_cpu = int(os.cpu_count() / 2)
 path = './xlsx_file'
 file_list = os.listdir(path)
 file_count = len(file_list)
 
-
-def convert_text(text):
-    return_text = text.replace('-', '')
-    count = return_text.find('(')
-
-    if count > -1:
-        return_text = return_text[0:count]
-
-    return return_text
+thread_result_arr = []
+proc_result_arr = []
 
 
 # 코어당 스레드 균등 분배
@@ -48,15 +39,70 @@ def thread_equal_distb(f_cnt, c_cnt):
     return one_core_thread
 
 
-def work_thread(file_path_arr):
+
+
+def work_thread(file_path_arr, queue):
 
     arr_len = len(file_path_arr)
+
+    result_arr = []
 
     for i in range(0, arr_len):
         th = Thread(target=extract, args=(file_path_arr[i],))
         th.start()
         th.join()
 
+    for obj in thread_result_arr:
+        # print(obj)
+        result_arr.append(obj)
+
+    queue.put(result_arr)
+    # my_data = my_queue.get()
+    # print(proc_result_arr)
+
+
+# 프로세스 + 스레드
+def work_proc_with_thread():
+
+    queue = Queue()
+
+    procs = []
+
+    df = None
+    # 파일 목록 배열에서 각 코어당 배정될 스레드 수만큼 파일을 나눠서 분배
+    arr_st_cnt = 0
+
+    for thread_count in thread_equal_distb(file_count, use_cpu):
+        file_path_arr = []
+
+        for i in range(arr_st_cnt, arr_st_cnt + thread_count):
+            file_path_arr.append(path + '/' + file_list[i])
+            # work_thread(file_list[i])
+
+        proc = Process(target=work_thread, args=(file_path_arr, queue))
+        proc.start()
+        procs.append(proc)
+
+        print(df)
+        arr_st_cnt += thread_count
+
+    for proc in procs:
+        proc.join()
+
+    queue.put('exit')
+
+    test_arr = []
+    while True:
+        tmp = queue.get()
+        if tmp == 'exit':
+            break
+        else:
+            test_arr.append(tmp)
+
+    for obj in test_arr:
+        print(pandas.DataFrame(obj))
+
+    # https://velog.io/@soojung61/Python-Process 링크확인..
 
 # Pool을 이용한 작업
 def work_pool():
@@ -71,7 +117,7 @@ def work_pool():
 
 
 # 순수 프로세스만을 이용한 작업
-def only_work_proc():
+def work_only_proc():
 
     procs = []
 
@@ -84,32 +130,26 @@ def only_work_proc():
         proc.join()
 
 
-# 프로세스 + 스레드
-def work_proc_with_thread():
+def convert_text(text):
+    return_text = text.replace('-', '')
+    count = return_text.find('(')
 
-    procs = []
-    # 파일 목록 배열에서 각 코어당 배정될 스레드 수만큼 파일을 나눠서 분배
-    arr_st_cnt = 0
+    if count > -1:
+        return_text = return_text[0:count]
 
-    for thread_count in thread_equal_distb(file_count, use_cpu):
-        file_path_arr = []
-
-        for i in range(arr_st_cnt, arr_st_cnt + thread_count):
-            file_path_arr.append(path + '/' + file_list[i])
-            # work_thread(file_list[i])
-        proc = Process(target=work_thread, args=(file_path_arr,))
-        proc.start()
-        procs.append(proc)
-
-        arr_st_cnt += thread_count
-
-    for proc in procs:
-        proc.join()
+    return return_text
 
 
 def extract(file_path):
-    print('프로세스 PID: {}, 파일 [{}] 작업 시작'.format(os.getpid(), file_path))
 
+    global thread_result_arr
+    # lock.acquire()
+    # try:
+    #     csv_name += (csv_name +1)
+    # finally:
+    #     lock.release()
+
+    print('프로세스 PID: {}, 파일 [{}] 작업 시작'.format(os.getpid(), file_path))
     wb = openpyxl.load_workbook(file_path)
 
     ws = wb.active
@@ -135,27 +175,14 @@ def extract(file_path):
 
             # print('단어 : {}, 품사: {} \n뜻: {}'.format(convert_text(text), word_type, desc))
 
-    df = pandas.DataFrame(df_obj)
+    thread_result_arr.append(df_obj)
+    # df = pandas.DataFrame(df_obj)
 
-    print(df)
+    save_name = file_path[file_path.rfind('/') + 1:file_path.rfind('.')] + '.csv'
+    # df.to_csv(save_name, encoding='utf-8-sig')
     print('프로세스 PID: {}, 파일 [{}] 작업 종료'.format(os.getpid(), file_path))
-    # df.to_csv('1.csv', encoding='utf-8-sig')
+    # return df
+    return df_obj
 
-
-if __name__ == '__main__':
-
-    loop_count = 3
-    total_time = 0
-
-    for i in range(0, loop_count):
-        start = time.time()
-        print('총 [{}]개 작업 중, [{}] 번째 작업 시작'.format(loop_count, i + 1))
-        # only_work_proc()  # 48.72 sec cpu 50% 정도
-        work_proc_with_thread()  # 43.66 거의 cpu 90 % 이상
-        # work_pool() 44.99 거의 90% 이상
-        print('소요 시간 {}초'.format(round((time.time() - start), 2)))
-        total_time += round((time.time() - start), 2)
-
-    print("평균 소요 시간 :", total_time / loop_count)
 
 
