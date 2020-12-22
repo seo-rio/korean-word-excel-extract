@@ -39,9 +39,11 @@ def thread_equal_distb(f_cnt, c_cnt):
     return one_core_thread
 
 
+queue = Queue()
 
 
-def work_thread(file_path_arr, queue):
+
+def work_thread(file_path_arr):
 
     arr_len = len(file_path_arr)
 
@@ -56,15 +58,17 @@ def work_thread(file_path_arr, queue):
         # print(obj)
         result_arr.append(obj)
 
+    print(len(result_arr))
     queue.put(result_arr)
-    # my_data = my_queue.get()
+    print('END Thread')
+    # my_data = my_queue.get())
     # print(proc_result_arr)
 
 
 # 프로세스 + 스레드
 def work_proc_with_thread():
 
-    queue = Queue()
+    global queue
 
     procs = []
 
@@ -79,16 +83,20 @@ def work_proc_with_thread():
             file_path_arr.append(path + '/' + file_list[i])
             # work_thread(file_list[i])
 
-        proc = Process(target=work_thread, args=(file_path_arr, queue))
+        proc = Process(target=work_thread, args=(file_path_arr, ))
         proc.start()
         procs.append(proc)
 
-        print(df)
+        # print(df)
         arr_st_cnt += thread_count
 
     for proc in procs:
         proc.join()
 
+        # 여기서 왜 프로세스가 종료가 안되는지 찾아내야함
+        print('END Proc Join')
+
+    print('END Proc')
     queue.put('exit')
 
     test_arr = []
